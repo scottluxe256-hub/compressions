@@ -11,12 +11,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install gdown & zip
+      - name: Install FFmpeg, Zip, & gdown
         run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg zip
           pip install gdown
-          sudo apt-get update && sudo apt-get install -y zip
 
-      - name: Cek Versi FFmpeg Bawaan
+      - name: Cek Versi FFmpeg
         run: ffmpeg -version
 
       - name: Download Folder dari Google Drive
@@ -24,7 +25,7 @@ jobs:
           echo "Mengunduh semua video dari folder Google Drive..."
           gdown --folder "https://drive.google.com/drive/folders/1iARFOKWrSEjslCaNvqu_hdT8oSJMimcT" -O raw_videos/
 
-      - name: Proses Kompresi Batch dengan FFmpeg Bawaan
+      - name: Proses Kompresi Batch dengan FFmpeg
         run: |
           mkdir -p compressed_videos
 
