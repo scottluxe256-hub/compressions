@@ -7,9 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       ffmpeg_url:
-        description: 'URL Direct Download ffmpeg.exe Custom Kamu (Release)'
-        required: true
-        default: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
+        description: 'URL Direct Download ffmpeg.exe Custom Kamu'
+        required: false
+
+env:
+  # ⚠️ GANTI LINK DI BAWAH INI DENGAN LINK RELEASE FFMPEG.EXE MILIKMU ⚠️
+  DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
 
 jobs:
   batch-compress-windows:
@@ -31,10 +34,16 @@ jobs:
       - name: Install gdown
         run: pip install gdown
 
+      # Langkah ini sudah aman untuk 'push' maupun 'workflow_dispatch'
       - name: Download Custom ffmpeg.exe
         run: |
-          echo "Mengunduh ffmpeg.exe kustom milikmu..."
-          curl -L "${{ github.event.inputs.ffmpeg_url }}" -o ffmpeg.exe
+          URL="${{ github.event.inputs.ffmpeg_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ env.DEFAULT_FFMPEG_URL }}"
+          fi
+
+          echo "Mengunduh ffmpeg.exe kustom dari: $URL"
+          curl -L "$URL" -o ffmpeg.exe
 
       - name: Restore Cache Folder Compressed Videos
         uses: actions/cache@v4
@@ -56,7 +65,6 @@ jobs:
           echo "=== Struktur Folder Hasil Download raw_videos ==="
           find raw_videos -type f
 
-          # Filter tr -d '\r' & -nostdin & < /dev/null mencegah FFmpeg memakan daftar file
           find raw_videos -type f \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.m4v" -o -iname "*.mkv" -o -iname "*.avi" \) | tr -d '\r' | while read -r input_path; do
             filename=$(basename "$input_path")
             output_path="compressed_videos/${filename%.*}_H265.mp4"
@@ -71,7 +79,6 @@ jobs:
               continue
             fi
 
-            # Ditambahkan -nostdin di awal dan < /dev/null di akhir
             ./ffmpeg.exe -nostdin -i "$input_path" \
               -c:v libx265 -preset slow -crf 18 -r 60 -profile:v main -pix_fmt yuv420p \
               -g 120 -keyint_min 30 \
@@ -96,3 +103,4 @@ jobs:
           name: Hasil-Kompresi-Batch-Windows
           path: Hasil_Kompresi_Videos.zip
           retention-days: 7
+          
