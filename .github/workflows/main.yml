@@ -1,4 +1,4 @@
-Name: Batch Video Compression H265 (Windows + MEGA)
+name: Batch Video Compression H265 (Windows + MEGA)
 
 on:
   push:
