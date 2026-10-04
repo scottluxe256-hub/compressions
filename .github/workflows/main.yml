@@ -1,4 +1,4 @@
-name: Batch Video Compression (Windows + Custom FFmpeg.exe)
+name: Batch Video Compression H265 (Windows + MEGA)
 
 on:
   push:
@@ -6,12 +6,17 @@ on:
       - main
   workflow_dispatch:
     inputs:
+      mega_url:
+        description: 'URL Direct MEGA (File/Folder) Video Input'
+        required: false
+        default: 'https://mega.nz/file/S7423QjI#zWNNjJFAtjwRU-jLfEiGU12yWCc9-oEF_WgyOYwimIE'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg.exe Custom Kamu'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/S7423QjI#zWNNjJFAtjwRU-jLfEiGU12yWCc9-oEF_WgyOYwimIE'
 
 jobs:
   batch-compress-windows:
@@ -25,13 +30,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Python & Install gdown
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install gdown
-        run: pip install gdown
+      - name: Install Megatools via Chocolatey
+        run: |
+          choco install megatools -y
+          mkdir -p raw_videos
 
       - name: Download Custom ffmpeg.exe
         run: |
@@ -51,36 +53,41 @@ jobs:
           restore-keys: |
             video-cache-${{ runner.os }}-
 
-      - name: Download Folder dari Google Drive
+      - name: Download Video dari MEGA
         run: |
-          echo "Mengunduh semua video dari folder Google Drive..."
-          gdown --folder "https://drive.google.com/drive/folders/1rCS3kQAxu2i-lH8vMEJq5hRHJCWery1_" -O raw_videos/
+          MEGA_LINK="${{ github.event.inputs.mega_url }}"
+          if [ -z "$MEGA_LINK" ]; then
+            MEGA_LINK="${{ env.DEFAULT_MEGA_URL }}"
+          fi
 
-      - name: Bersihkan Cache Lama yang Tidak Ada di Drive
+          echo "Mengunduh file/folder dari MEGA: $MEGA_LINK"
+          megatools dl "$MEGA_LINK" --path raw_videos/
+
+      - name: Bersihkan Cache Lama yang Tidak Ada di Sumber MEGA
         run: |
           mkdir -p compressed_videos
           echo "Memeriksa dan membersihkan file cache lama..."
           for output_file in compressed_videos/*; do
             [ -e "$output_file" ] || continue
             filename=$(basename "$output_file")
-            raw_base="${filename%_H264.mp4}"
+            raw_base="${filename%_H265.mp4}"
             
             # Cek apakah file sumber asli masih ada di raw_videos
             match=$(find raw_videos -type f -name "${raw_base}.*" | head -n 1)
             if [ -z "$match" ]; then
-              echo "🗑️ Menghapus cache lama (tidak ada di Drive): $filename"
+              echo "🗑️ Menghapus cache lama (tidak ada di MEGA): $filename"
               rm "$output_file"
             fi
           done
 
-      - name: Proses Kompresi Batch dengan ffmpeg.exe Custom (H.264)
+      - name: Proses Kompresi Batch dengan ffmpeg.exe Custom (H.265 / x265)
         run: |
           echo "=== Struktur Folder Hasil Download raw_videos ==="
           find raw_videos -type f
 
           find raw_videos -type f \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.m4v" -o -iname "*.mkv" -o -iname "*.avi" \) | tr -d '\r' | while read -r input_path; do
             filename=$(basename "$input_path")
-            output_path="compressed_videos/${filename%.*}_H264.mp4"
+            output_path="compressed_videos/${filename%.*}_H265.mp4"
 
             echo "=================================================="
             echo "Memproses Video: $filename"
@@ -93,14 +100,15 @@ jobs:
             fi
 
             ./ffmpeg.exe -nostdin -i "$input_path" \
-              -c:v libx264 -preset veryslow -crf 21 -r 60 -profile:v high -level:v 4.2 -pix_fmt yuv420p \
+              -c:v libx265 -preset slower -crf 26 -r 60 -profile:v main -pix_fmt yuv420p \
               -g 120 -keyint_min 30 \
-              -x264-params "ref=8:bframes=8:aq-mode=2:aq-strength=1.0:psy-rd=1.00,0.15:trellis=2:deblock=-1,-1:threads=0:rc-lookahead=60:me=umh:merange=24:subme=8" \
-              -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
+              -x265-params "ref=6:bframes=6:aq-mode=2:aq-strength=1.0:qg-size=16:psy-rd=1.0:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:rc-lookahead=60:me=umh:merange=24:subme=7:wpp=1:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited" \
+              -tag:v hvc1 \
               -sws_flags spline+accurate_rnd \
-              -vf "fps=60,setpts=N/(60*TB),hqdn3d=1.0:1.0:4:4,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=tv" \
+              -vf "setpts=N/(60*TB),hqdn3d=1.0:1.0:4:4,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=tv" \
               -c:a libfdk_aac -profile:a aac_he -b:a 64k \
-              -video_track_timescale 60000 -metadata title="TikTok 8Bit Safe Color H264" \
+              -af "aresample=async=1000,apad" \
+              -video_track_timescale 60000 -metadata title="TikTok 8Bit Safe Color H265" \
               -movflags +faststart -shortest -y "$output_path" < /dev/null
 
             echo "✅ Selesai memproses: $filename"
@@ -109,7 +117,6 @@ jobs:
       - name: Upload Artifact (Otomatis ZIP Langsung)
         uses: actions/upload-artifact@v4
         with:
-          name: Hasil-Kompresi-Batch-Windows
+          name: Hasil-Kompresi-Batch-Windows-H265
           path: compressed_videos/
           retention-days: 7
-          
