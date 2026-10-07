@@ -100,7 +100,7 @@ jobs:
             fi
 
             ./ffmpeg.exe -nostdin -i "$input_path" \
-              -c:v libsvtav1 -preset 4 -crf 30 -r 60 -pix_fmt yuv420p \
+              -c:v libsvtav1 -preset 4 -crf 35 -r 60 -pix_fmt yuv420p \
               -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
               -g 120 -keyint_min 30 \
               -sws_flags spline+accurate_rnd \
