@@ -1,4 +1,4 @@
-name: Batch Video Compression H265 (Windows + MEGA)
+name: Batch Video Compression AV1 (Windows + MEGA)
 
 on:
   push:
@@ -16,7 +16,7 @@ on:
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/S7423QjI#zWNNjJFAtjwRU-jLfEiGU12yWCc9-oEF_WgyOYwimIE'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/f7A2nbYB#D042nUfFMlX0E8HB_aD2E-YoKDFHODTKdPsKS2N92Js'
 
 jobs:
   batch-compress-windows:
@@ -70,7 +70,7 @@ jobs:
           for output_file in compressed_videos/*; do
             [ -e "$output_file" ] || continue
             filename=$(basename "$output_file")
-            raw_base="${filename%_H265.mp4}"
+            raw_base="${filename%_AV1.mp4}"
             
             # Cek apakah file sumber asli masih ada di raw_videos
             match=$(find raw_videos -type f -name "${raw_base}.*" | head -n 1)
@@ -80,14 +80,14 @@ jobs:
             fi
           done
 
-      - name: Proses Kompresi Batch dengan ffmpeg.exe Custom (H.265 / x265)
+      - name: Proses Kompresi Batch dengan ffmpeg.exe Custom (AV1)
         run: |
           echo "=== Struktur Folder Hasil Download raw_videos ==="
           find raw_videos -type f
 
           find raw_videos -type f \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.m4v" -o -iname "*.mkv" -o -iname "*.avi" \) | tr -d '\r' | while read -r input_path; do
             filename=$(basename "$input_path")
-            output_path="compressed_videos/${filename%.*}_H265.mp4"
+            output_path="compressed_videos/${filename%.*}_AV1.mp4"
 
             echo "=================================================="
             echo "Memproses Video: $filename"
@@ -100,15 +100,14 @@ jobs:
             fi
 
             ./ffmpeg.exe -nostdin -i "$input_path" \
-              -c:v libx265 -preset slow -crf 28 -r 60 -profile:v main -pix_fmt yuv420p \
+              -c:v libsvtav1 -preset 4 -crf 30 -r 60 -pix_fmt yuv420p \
+              -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
               -g 120 -keyint_min 30 \
-              -x265-params "ref=6:bframes=6:aq-mode=2:aq-strength=1.0:qg-size=16:psy-rd=1.0:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:rc-lookahead=60:me=umh:merange=24:subme=5:wpp=1:pmode=1:pme=1:frame-threads=0:lookahead-threads=4:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited" \
-              -tag:v hvc1 \
               -sws_flags spline+accurate_rnd \
               -vf "setpts=N/(60*TB),hqdn3d=1.0:1.0:4:4,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=tv" \
               -c:a libfdk_aac -profile:a aac_he -b:a 64k \
               -af "aresample=async=1000,apad" \
-              -video_track_timescale 60000 -metadata title="TikTok 8Bit Safe Color H265" \
+              -tag:v av01 -metadata title="TikTok 8Bit Safe Color AV1" \
               -movflags +faststart -shortest -y "$output_path" < /dev/null
 
             echo "✅ Selesai memproses: $filename"
@@ -117,6 +116,6 @@ jobs:
       - name: Upload Artifact (Otomatis ZIP Langsung)
         uses: actions/upload-artifact@v4
         with:
-          name: Hasil-Kompresi-Batch-Windows-H265
+          name: Hasil-Kompresi-Batch-Windows-AV1
           path: compressed_videos/
           retention-days: 7
