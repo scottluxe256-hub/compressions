@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL Direct MEGA Folder (Berisi banyak video .mp4)'
         required: false
-        default: 'https://mega.nz/folder/P6JElAxI#fbMvsXBK7sRV1wv_X6C57Q'
+        default: 'https://mega.nz/folder/7jYB2CAJ#fbMvsXBK7sRV1wv_X6C57Q'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg.exe Custom Kamu'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
-  DEFAULT_MEGA_URL: 'https://mega.nz/folder/P6JElAxI#fbMvsXBK7sRV1wv_X6C57Q'
+  DEFAULT_MEGA_URL: 'https://mega.nz/folder/7jYB2CAJ#fbMvsXBK7sRV1wv_X6C57Q'
 
 jobs:
   batch-compress-windows:
@@ -69,16 +69,12 @@ jobs:
           mkdir -p compressed_videos
           
           # Membuat script kecil untuk menangani satu video
-          # Script ini nanti akan dipanggil berkali-kali secara paralel
           cat << 'EOF' > compress_single.sh
           #!/bin/bash
           INPUT="$1"
-          # Mengambil nama file saja tanpa path
           FILENAME=$(basename "$INPUT")
-          # Menentukan nama output
           OUTPUT="compressed_videos/${FILENAME%.*}_H265.mp4"
 
-          # Lewati jika sudah ada di cache
           if [ -f "$OUTPUT" ]; then
             echo "⏩ SKIPPED: $FILENAME sudah ada di Cache!"
             exit 0
@@ -101,19 +97,22 @@ jobs:
           echo "✅ Selesai: $FILENAME"
           EOF
           
-          # Berikan izin agar script bisa dieksekusi
+          # FIX 1: Hapus karakter enter aneh khas Windows (CRLF -> LF) agar bash tidak error
+          sed -i 's/\r$//' compress_single.sh
           chmod +x compress_single.sh
 
           echo "=================================================="
           echo "Memulai Batch Compression Paralel..."
           echo "=================================================="
 
-          # Cari semua file MP4 di folder raw_videos, lalu lempar ke xargs
-          # -n 1 artinya satu file per tugas
-          # -P 3 artinya jalankan maksimal 3 tugas secara bersamaan (karena runner GitHub punya 4 CPU, kita sisakan 1 buat sistem)
-          find raw_videos -type f -name "*.mp4" | xargs -n 1 -P 3 ./compress_single.sh
+          # FIX 2: Tambahkan -print0 dan -0 supaya sistem tidak bingung kalau ada spasi di nama file
+          find raw_videos -type f -name "*.mp4" -print0 | xargs -0 -n 1 -P 3 ./compress_single.sh
           
-          echo "🎉 Semua video berhasil dikompresi!"
+          echo "🎉 Semua antrean xargs selesai dieksekusi!"
+          
+          # FIX 3: Verifikasi hasil akhir di log
+          echo "=== Cek isi folder output ==="
+          ls -lh compressed_videos/
 
       - name: Upload Artifact (Otomatis ZIP Langsung)
         uses: actions/upload-artifact@v4
