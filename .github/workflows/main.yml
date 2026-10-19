@@ -1,4 +1,4 @@
-name: Compress H265 Batch (Windows + MEGA)
+Name: Compress H265 Single (Windows + MEGA)
 
 on:
   push:
@@ -52,40 +52,42 @@ jobs:
           fi
           megatools dl "$MEGA_LINK" --path raw_videos/
 
-      - name: Proses Kompresi H.265
+      - name: Proses Kompresi H.265 (Single Video)
         run: |
-          shopt -s globstar nullglob
-          
-          # Cari semua file video di folder raw_videos secara rekursif
-          find raw_videos -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.mov" \) | while read -r INPUT; do
-            FILENAME=$(basename "$INPUT")
-            OUTPUT="compressed_videos/${FILENAME%.*}_H265_Clean.mp4"
+          # Mengambil 1 video pertama saja yang ada di folder MEGA
+          INPUT=$(find raw_videos -type f \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.mov" \) | head -n 1)
 
-            echo "🚀 Memproses kompresi H.265: $FILENAME"
+          if [ -z "$INPUT" ]; then
+            echo "❌ Tidak ada video yang ditemukan di folder MEGA!"
+            exit 1
+          fi
 
-            ./ffmpeg.exe -nostdin \
-              -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-              -i "$INPUT" \
-              -c:v libx265 -preset slow -crf 26 -r 60 -profile:v main -pix_fmt yuv420p \
-              -g 120 -keyint_min 30 \
-              -x265-params "ref=5:bframes=5:aq-mode=2:aq-strength=0.8:qg-size=16:psy-rd=0.4:psy-rdoq=0.15:rdoq-level=2:deblock=1,1:rc-lookahead=60:me=umh:merange=24:subme=3:wpp=1:sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited" \
-              -sws_flags spline+accurate_rnd \
-              -vf "hqdn3d=1.0:1.0:4:4,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=tv" \
-              -c:a libfdk_aac -profile:a aac_he -b:a 64k \
-              -af "aresample=async=1000,apad" \
-              -video_track_timescale 60000 -tag:v hvc1 \
-              -metadata title="TikTok 8Bit Safe Color H265" \
-              -movflags +faststart -shortest -y "$OUTPUT"
+          FILENAME=$(basename "$INPUT")
+          OUTPUT="compressed_videos/${FILENAME%.*}_H265_Clean.mp4"
 
-            echo "✅ Selesai: $OUTPUT"
-          done
+          echo "🚀 Memproses kompresi H.265: $FILENAME"
 
-          echo "🎉 Semua video berhasil dikompres!"
+          ./ffmpeg.exe -nostdin \
+            -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+            -i "$INPUT" \
+            -fps_mode cfr -r 60 \
+            -c:v libx265 -preset slow -crf 24 -profile:v main -pix_fmt yuv420p \
+            -g 120 -keyint_min 30 \
+            -x265-params "ref=5:bframes=5:aq-mode=2:aq-strength=0.8:qg-size=16:psy-rd=0.4:psy-rdoq=0.15:rdoq-level=2:deblock=1,1:rc-lookahead=60:me=umh:merange=24:subme=3:wpp=1:sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited" \
+            -sws_flags spline+accurate_rnd \
+            -vf "settb=1/60,setpts=N,hqdn3d=1.0:1.0:4:4,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=pc" \
+            -c:a libfdk_aac -profile:a aac_he -b:a 64k \
+            -af "asetpts=PTS-STARTPTS,aresample=async=1000" \
+            -video_track_timescale 60000 -tag:v hvc1 \
+            -metadata title="TikTok 8Bit Safe Color H265" \
+            -movflags +faststart -y "$OUTPUT"
+
+          echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Hasil-Kompres-H265-Batch
+          name: Hasil-Kompres-H265-Single
           path: compressed_videos/
           retention-days: 7
