@@ -52,7 +52,7 @@ jobs:
           fi
           megatools dl "$MEGA_LINK" --path raw_videos/
 
-      - name: Proses Kompresi Batch H.265
+      - name: Proses Kompresi H.265
         run: |
           shopt -s globstar nullglob
           
