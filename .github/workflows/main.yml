@@ -1,4 +1,4 @@
-name: Compress H264 Single File (Windows)
+name: Compress H265 Single File (Windows)
 
 on:
   push:
@@ -9,17 +9,17 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/z3JjVLLZ#tIFbM5-Dc_Ugxgpei3CWCYHx8iSbmWWbUggXs4lbUHU'
+        default: 'https://mega.nz/file/iyoHBboa#nVZVHuvmBRxBozM3yYYwZrJWMURuBpK-H7reM8ipu7I'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg.exe'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/z3JjVLLZ#tIFbM5-Dc_Ugxgpei3CWCYHx8iSbmWWbUggXs4lbUHU'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/iyoHBboa#nVZVHuvmBRxBozM3yYYwZrJWMURuBpK-H7reM8ipu7I'
 
 jobs:
-  compress-h264:
+  compress-h265:
     runs-on: windows-latest
     defaults:
       run:
@@ -64,7 +64,7 @@ jobs:
           echo "Isi folder raw_videos:"
           ls -la raw_videos
 
-      - name: Proses Kompresi H.264
+      - name: Proses Kompresi H.265
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
 
@@ -74,24 +74,24 @@ jobs:
           fi
 
           FILENAME=$(basename "$INPUT")
-          OUTPUT="compressed_videos/${FILENAME%.*}_H264_SuperClean.mp4"
+          OUTPUT="compressed_videos/${FILENAME%.*}_H265_SuperClean.mp4"
 
-          echo "🚀 Memproses kompresi H.264: $FILENAME"
+          echo "🚀 Memproses kompresi H.265: $FILENAME"
 
           ./ffmpeg.exe -nostdin \
             -color_range pc -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
             -i "$INPUT" \
             -r 60 \
-            -c:v libx264 -preset slower -crf 24 -profile:v high -pix_fmt yuv420p \
+            -c:v libx265 -preset slow -crf 23 -profile:v main -pix_fmt yuv420p \
             -g 120 -keyint_min 30 \
-            -x264-params "level=4.1:ref=8:bframes=8:aq-mode=3:aq-strength=0.8:psy-rd=0.4,0.15:trellis=2:deblock=1,1:rc-lookahead=60:me=umh:merange=24:subme=9:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=pc" \
+            -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.8:qg-size=16:psy-rd=0.4:psy-rdoq=0.15:rdoq-level=2:deblock=1,1:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=full" \
             -sws_flags spline+accurate_rnd \
             -vf "setpts=N/FRAME_RATE/TB,hqdn3d=1.0:1.0:4:4,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=pc" \
             -c:a libfdk_aac -profile:a aac_he -b:a 64k \
             -af "asetpts=PTS-STARTPTS,aresample=async=1000,apad" \
             -shortest \
-            -video_track_timescale 60000 \
-            -metadata title="TikTok 8Bit Safe Color H264 PC Range" \
+            -video_track_timescale 60000 -tag:v hvc1 \
+            -metadata title="TikTok 8Bit Safe Color H265 PC Range" \
             -movflags +faststart -y "$OUTPUT"
 
           echo "✅ Selesai: $OUTPUT"
@@ -100,6 +100,6 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Hasil-Kompres-H264
+          name: Hasil-Kompres-H265
           path: compressed_videos/
           retention-days: 7
