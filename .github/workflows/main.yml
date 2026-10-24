@@ -49,13 +49,19 @@ jobs:
             MEGA_LINK="${{ env.DEFAULT_MEGA_URL }}"
           fi
 
-          # Konversi format baru (/file/ID#KEY) ke format lama (#!ID!KEY) untuk megatools
-          MEGA_LINK=$(echo "$MEGA_LINK" | sed 's|/file/|/#!|g' | sed 's|#|!|g')
+          # Konversi /file/ID#KEY menjadi /#!ID!KEY dengan benar
+          OLD_MEGA_LINK=$(echo "$MEGA_LINK" | sed -E 's|/file/([^#]+)#|/#!\1!|')
 
-          echo "Mengunduh dari: $MEGA_LINK"
-          megatools dl "$MEGA_LINK" --path raw_videos
+          echo "Mengunduh dari: $OLD_MEGA_LINK"
 
-          echo "Daftar berkas di raw_videos:"
+          # Jalankan megatools, jika gagal otomatis download via Python
+          megatools dl "$OLD_MEGA_LINK" --path raw_videos || {
+            echo "⚠️ Megatools gagal, mencoba fallback via Python mega.py..."
+            pip install mega.py
+            python -c "from mega import Mega; m = Mega().login(); m.download_url('$OLD_MEGA_LINK', dest_path='raw_videos')"
+          }
+
+          echo "Isi folder raw_videos:"
           ls -la raw_videos
 
       - name: Proses Kompresi H.265
