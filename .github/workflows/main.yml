@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/iyoHBboa#nVZVHuvmBRxBozM3yYYwZrJWMURuBpK-H7reM8ipu7I'
+        default: 'https://mega.nz/file/OvwlgLQD#XUSvtWK92GAO_mERU00Y0iAu4LcRLyv4JYd6Nfnm2z4'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg.exe'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/iyoHBboa#nVZVHuvmBRxBozM3yYYwZrJWMURuBpK-H7reM8ipu7I'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/OvwlgLQD#XUSvtWK92GAO_mERU00Y0iAu4LcRLyv4JYd6Nfnm2z4'
 
 jobs:
   compress-h265:
@@ -79,20 +79,20 @@ jobs:
           echo "🚀 Memproses kompresi H.265: $FILENAME"
 
           ./ffmpeg.exe -nostdin \
-            -color_range pc -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-            -i "$INPUT" \
-            -r 60 \
-            -c:v libx265 -preset slow -crf 23 -profile:v main -pix_fmt yuv420p \
-            -g 120 -keyint_min 30 \
-            -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.8:qg-size=16:psy-rd=0.4:psy-rdoq=0.15:rdoq-level=2:deblock=1,1:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=full" \
-            -sws_flags spline+accurate_rnd \
-            -vf "setpts=N/FRAME_RATE/TB,hqdn3d=1.0:1.0:4:4,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=pc" \
-            -c:a libfdk_aac -profile:a aac_he -b:a 64k \
-            -af "asetpts=PTS-STARTPTS,aresample=async=1000" \
-            -shortest \
-            -video_track_timescale 60000 -tag:v hvc1 \
-            -metadata title="TikTok 8Bit Safe Color H265 PC Range" \
-            -movflags +faststart -y "$OUTPUT"
+          -color_range pc -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+          -i "$INPUT" \
+          -r 60 \
+          -c:v libx265 -preset slow -crf 26 -profile:v main -pix_fmt yuv420p \
+          -g 120 -keyint_min 30 \
+          -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.9:qg-size=16:psy-rd=1.6:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=full" \
+          -sws_flags spline+accurate_rnd \
+          -vf "setpts=N/FRAME_RATE/TB,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp,colorspace=all=bt709:range=pc" \
+          -c:a copy \
+          -af "asetpts=PTS-STARTPTS,aresample=async=1000,apad" \
+          -shortest \
+          -video_track_timescale 60000 -tag:v hvc1 \
+          -metadata title="TikTok 8Bit Safe Color H265 PC Range" \
+          -movflags +faststart -y "$OUTPUT"
 
           echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
