@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/CiJyCJwC#ektIfUizS3YFXMVAQMYylFC1VbMhJQ7HSN_-5EMKlYE'
+        default: 'https://mega.nz/file/36JnmaBK#L19UOXsAk4YgnVNyLNy2T26aaWA4lLPzXDHdSiAQuzo'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg.exe'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/CiJyCJwC#ektIfUizS3YFXMVAQMYylFC1VbMhJQ7HSN_-5EMKlYE'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/36JnmaBK#L19UOXsAk4YgnVNyLNy2T26aaWA4lLPzXDHdSiAQuzo'
 
 jobs:
   compress-h265:
@@ -88,7 +88,7 @@ jobs:
           -color_range pc -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -c:a libfdk_aac -profile:a aac_he -b:a 64k \
           -shortest \
-          -video_track_timescale 30000 -tag:v hvc1 \
+          -video_track_timescale 60000 -tag:v hvc1 \
           -metadata title="TikTok 8Bit Safe Color H265 PC Range" \
           -movflags +faststart -y "$OUTPUT"
 
