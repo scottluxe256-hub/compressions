@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/OvwlgLQD#XUSvtWK92GAO_mERU00Y0iAu4LcRLyv4JYd6Nfnm2z4'
+        default: 'https://mega.nz/file/CiJyCJwC#ektIfUizS3YFXMVAQMYylFC1VbMhJQ7HSN_-5EMKlYE'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg.exe'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.1/ffmpeg.exe'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/OvwlgLQD#XUSvtWK92GAO_mERU00Y0iAu4LcRLyv4JYd6Nfnm2z4'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/CiJyCJwC#ektIfUizS3YFXMVAQMYylFC1VbMhJQ7HSN_-5EMKlYE'
 
 jobs:
   compress-h265:
@@ -80,17 +80,18 @@ jobs:
           ./ffmpeg.exe -nostdin \
           -i "$INPUT" \
           -r 60 \
-          -c:v libx264 -preset veryslow -crf 24 -profile:v high -pix_fmt yuv420p \
+          -c:v libx265 -preset slow -crf 26 -profile:v main -pix_fmt yuv420p \
           -g 120 -keyint_min 30 \
-          -x264-params "level=4.1:ref=8:bframes=8:aq-mode=3:aq-strength=0.9:psy-rd=1.0,0.2:trellis=2:deblock=-1,-1:rc-lookahead=60:me=umh:merange=24:subme=9:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=pc" \
+          -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.9:qg-size=16:psy-rd=1.6:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:range=full" \
           -sws_flags spline+accurate_rnd \
           -vf "setpts=N/FRAME_RATE/TB,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':in_range=tv:out_range=pc:in_color_matrix=bt709:out_color_matrix=bt709:flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
           -color_range pc -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-          -c:a copy \
+          -c:a libfdk_aac profile:a aac_he 64k \
           -shortest \
-          -video_track_timescale 60000 \
-          -metadata title="TikTok 8Bit Safe Color H264 PC Range" \
+          -video_track_timescale 30000 -tag:v hvc1 \
+          -metadata title="TikTok 8Bit Safe Color H265 PC Range" \
           -movflags +faststart -y "$OUTPUT"
+
 
 
           echo "✅ Selesai: $OUTPUT"
