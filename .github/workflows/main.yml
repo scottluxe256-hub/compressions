@@ -86,7 +86,7 @@ jobs:
           -sws_flags spline+accurate_rnd \
           -vf "setpts=N/FRAME_RATE/TB,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':in_range=tv:out_range=pc:in_color_matrix=bt709:out_color_matrix=bt709:flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
           -color_range pc -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-          -c:a libfdk_aac -profile:a aac_he 64k \
+          -c:a libfdk_aac -profile:a aac_he -b:a 64k \
           -shortest \
           -video_track_timescale 30000 -tag:v hvc1 \
           -metadata title="TikTok 8Bit Safe Color H265 PC Range" \
