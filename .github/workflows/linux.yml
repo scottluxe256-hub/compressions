@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/CrJiCI6B#m2ya_j0gkyz0_704PAdDki1nGQHGAuLkVQPlaYvJN-A'
+        default: 'https://mega.nz/file/TzZBxY7Y#WMYFXpkp1OQQdKgkRCyMgpI26RvyJJqG7YArpiIJRpQ'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/CrJiCI6B#m2ya_j0gkyz0_704PAdDki1nGQHGAuLkVQPlaYvJN-A'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/TzZBxY7Y#WMYFXpkp1OQQdKgkRCyMgpI26RvyJJqG7YArpiIJRpQ'
 
 jobs:
   compress-h265-ubuntu:
@@ -62,7 +62,7 @@ jobs:
           echo "Isi folder raw_videos:"
           ls -la raw_videos
 
-      - name: Proses Kompresi H.265 (Ubuntu - Multithreaded)
+      - name: Proses Kompresi H.265 (Ubuntu - PC Range & Crisp Detail)
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
 
@@ -72,23 +72,24 @@ jobs:
           fi
 
           FILENAME=$(basename "$INPUT")
-          OUTPUT="compressed_videos/${FILENAME%.*}_H265_AutoColor.mp4"
+          OUTPUT="compressed_videos/${FILENAME%.*}_H265_PCRange.mp4"
 
           echo "🚀 Memproses kompresi H.265 di Ubuntu: $FILENAME"
 
           ./ffmpeg -nostdin \
             -i "$INPUT" \
             -r 60 \
-            -c:v libx265 -preset slow -crf 26 -profile:v main -pix_fmt yuv420p \
+            -c:v libx265 -preset slow -crf 25 -profile:v main -pix_fmt yuv420p \
             -g 120 -keyint_min 30 \
-            -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.9:qg-size=16:psy-rd=1.6:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
+            -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.9:qg-size=16:psy-rd=1.6:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:no-strong-intra-smoothing=1:range=full:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
+            -color_range pc \
             -sws_flags spline+accurate_rnd \
-            -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
+            -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
             -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
             -c:a libfdk_aac -profile:a aac_low -b:a 128k \
             -shortest \
             -video_track_timescale 60000 -tag:v hvc1 \
-            -metadata title="TikTok 8Bit Safe Color H265 Auto Range" \
+            -metadata title="TikTok 8Bit Safe Color H265 PC Range" \
             -movflags +faststart -y "$OUTPUT"
 
           echo "✅ Selesai: $OUTPUT"
@@ -100,4 +101,3 @@ jobs:
           name: Hasil-Kompres-H265-Ubuntu
           path: compressed_videos/
           retention-days: 7
-          
