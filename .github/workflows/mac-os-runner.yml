@@ -10,11 +10,11 @@ on:
       ffmpeg_url:
         description: 'Direct Link Biner FFmpeg dari GitHub Release'
         required: true
-        default: ''
+        default: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
       qp:
         description: 'Nilai QP Kualitas (Rekomendasi: 28 - 34)'
         required: false
-        default: '30'
+        default: '28'
 
 jobs:
   compress-h266:
