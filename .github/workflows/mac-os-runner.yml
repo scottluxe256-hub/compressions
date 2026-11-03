@@ -1,0 +1,88 @@
+name: Test Compress Video H.266 (VVC macOS 15)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mega_url:
+        description: 'Link Publik Video dari MEGA'
+        required: true
+        default: 'https://mega.nz/file/CrJiCI6B#m2ya_j0gkyz0_704PAdDki1nGQHGAuLkVQPlaYvJN-A'
+      ffmpeg_url:
+        description: 'Direct Link Biner FFmpeg dari GitHub Release'
+        required: true
+        default: ''
+      qp:
+        description: 'Nilai QP Kualitas (Rekomendasi: 28 - 34)'
+        required: false
+        default: '30'
+
+jobs:
+  compress-h266:
+    runs-on: macos-15
+    timeout-minutes: 120
+
+    steps:
+      - name: Install Tool Pendukung (megatools)
+        run: |
+          brew update
+          brew install megatools
+
+      - name: Unduh Biner FFmpeg Mentah
+        run: |
+          FFMPEG_URL="${{ github.event.inputs.ffmpeg_url }}"
+          echo "⬇️ Mengunduh biner FFmpeg dari: $FFMPEG_URL"
+          curl -L -f "$FFMPEG_URL" -o ffmpeg
+          chmod +x ffmpeg
+
+          echo "=== Cek Status FFmpeg & libvvenc ==="
+          ./ffmpeg -version | head -n 5
+
+      - name: Unduh Video Sumber dari MEGA
+        run: |
+          MEGA_LINK="${{ github.event.inputs.mega_url }}"
+          echo "⬇️ Mengunduh video bahan via megatools..."
+          mkdir -p input_dir
+          cd input_dir
+          megatools dl "$MEGA_LINK"
+
+          INPUT_FILE=$(ls -1 | head -n 1)
+          echo "File terunduh: $INPUT_FILE"
+          mv "$INPUT_FILE" ../input_video.mp4
+
+      - name: Eksekusi Kompresi H.266 (libvvenc)
+        run: |
+          QP="${{ github.event.inputs.qp }}"
+
+          echo "🚀 Memulai kompresi VVC (Preset: fast, 720p 60fps, Full Range PC)..."
+
+          ./ffmpeg -i input_video.mp4 \
+            -vf "scale=-2:720,setpts=N/(60*TB)" \
+            -r 60 \
+            -c:v libvvenc \
+            -preset fast \
+            -qp "$QP" \
+            -vvenc-params intraperiod=120:decodingrefreshtype=idr \
+            -pix_fmt yuv420p \
+            -color_range pc \
+            -colorspace bt709 \
+            -color_primaries bt709 \
+            -color_trc bt709 \
+            -c:a copy \
+            -movflags +faststart \
+            output_vvc_720p60.mp4
+
+          echo -e "\n=== Perbandingan Ukuran File ==="
+          ls -lh input_video.mp4 output_vvc_720p60.mp4
+
+      - name: Verifikasi Metadata Output
+        run: |
+          echo "=== Pengecekan Stream Output ==="
+          ./ffmpeg -i output_vvc_720p60.mp4 2>&1 | grep -E "Video:|Audio:|Stream"
+
+      - name: Upload Hasil Kompresi VVC ke Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-h266-720p60-result
+          path: output_vvc_720p60.mp4
+          retention-days: 3
+          
