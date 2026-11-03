@@ -15,7 +15,7 @@ on:
         required: false
 
 env:
-  DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/ffmpeg-builder/releases/download/9.0.2/ffmpeg'
+  DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
   DEFAULT_MEGA_URL: 'https://mega.nz/file/CrJiCI6B#m2ya_j0gkyz0_704PAdDki1nGQHGAuLkVQPlaYvJN-A'
 
 jobs:
