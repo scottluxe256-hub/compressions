@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/6jATyZ6D#zKkNdMNv163-OMvgGXt81Da_0jh9LbplTih99qn83No'
+        default: 'https://mega.nz/file/b7p1wJYT#ccGXkWnW0vjEL__cF59arEAVkureIdQxyBJ8YCrIqNc'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/6jATyZ6D#zKkNdMNv163-OMvgGXt81Da_0jh9LbplTih99qn83No'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/b7p1wJYT#ccGXkWnW0vjEL__cF59arEAVkureIdQxyBJ8YCrIqNc'
 
 jobs:
   compress-h265-ubuntu:
@@ -84,9 +84,9 @@ jobs:
           -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.8:qg-size=32:psy-rd=1.0:psy-rdoq=0.5:rdoq-level=2:deblock=0,0:nr-intra=250:nr-inter=250:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:range=full:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
           -color_range pc \
           -sws_flags spline+accurate_rnd \
-          -vf "transpose=1,fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
+          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-          -c:a libfdk_aac -profile:a aac_low -b:a 192k \
+          -c:a libfdk_aac -profile:a aac_he -b:a 64k \
           -shortest \
           -video_track_timescale 60000 -tag:v hvc1 \
           -metadata title="TikTok 8Bit Safe Color H265 PC Range Crisp" \
