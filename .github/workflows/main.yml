@@ -1,0 +1,104 @@
+name: Compress H264 Single File (Ubuntu)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      mega_url:
+        description: 'URL File MEGA (Direct File Link)'
+        required: false
+        default: 'https://mega.nz/file/Oq4h3K6T#e0CaXenJiwKM_uRIg7T5GAB-Y9McX8s6-3xy5daQrvY'
+      ffmpeg_url:
+        description: 'URL Direct Download ffmpeg binary'
+        required: false
+
+env:
+  DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/Oq4h3K6T#e0CaXenJiwKM_uRIg7T5GAB-Y9McX8s6-3xy5daQrvY'
+
+jobs:
+  compress-h264-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Folders & Install Tools
+        run: |
+          mkdir -p raw_videos compressed_videos
+          sudo apt-get update
+          sudo apt-get install -y megatools || true
+
+      - name: Download Custom Linux ffmpeg
+        run: |
+          URL="${{ github.event.inputs.ffmpeg_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ env.DEFAULT_FFMPEG_URL }}"
+          fi
+          echo "Downloading FFmpeg from: $URL"
+          curl -L "$URL" -o ffmpeg
+          chmod +x ffmpeg
+
+      - name: Download File dari MEGA
+        run: |
+          MEGA_LINK="${{ github.event.inputs.mega_url }}"
+          if [ -z "$MEGA_LINK" ]; then
+            MEGA_LINK="${{ env.DEFAULT_MEGA_URL }}"
+          fi
+
+          # Konversi /file/ID#KEY menjadi /#!ID!KEY
+          OLD_MEGA_LINK=$(echo "$MEGA_LINK" | sed -E 's|/file/([^#]+)#|/#!\1!|')
+
+          echo "Mengunduh dari: $OLD_MEGA_LINK"
+
+          megatools dl "$OLD_MEGA_LINK" --path raw_videos || {
+            echo "⚠️ Megatools gagal, mencoba fallback via Python mega.py..."
+            python3 -m pip install mega.py
+            python3 -c "from mega import Mega; m = Mega().login(); m.download_url('$OLD_MEGA_LINK', dest_path='raw_videos')"
+          }
+
+          echo "Isi folder raw_videos:"
+          ls -la raw_videos
+
+      - name: Proses Kompresi H.264 (Ubuntu - PC Range & Crisp Detail)
+        run: |
+          INPUT=$(find raw_videos -type f | head -n 1)
+
+          if [ -z "$INPUT" ]; then
+            echo "❌ Tidak ada video yang ditemukan!"
+            exit 1
+          fi
+
+          FILENAME=$(basename "$INPUT")
+          OUTPUT="compressed_videos/${FILENAME%.*}_H264_PCRange.mp4"
+
+          echo "🚀 Memproses kompresi H.264 di Ubuntu: $FILENAME"
+
+          ./ffmpeg -nostdin \
+          -i "$INPUT" \
+          -r 60 \
+          -c:v libx264 -preset slower -crf 23 -profile:v high -level 4.2 -pix_fmt yuv420p \
+          -g 120 -keyint_min 30 \
+          -x264-params "level=4.2:ref=4:bframes=5:b-adapt=2:aq-mode=3:aq-strength=0.8:psy-rd=1.0,0.15:trellis=2:deblock=0,0:nr=250:rc-lookahead=60:me=umh:merange=24:subme=8:threads=0:fullrange=on:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
+          -color_range pc \
+          -sws_flags spline+accurate_rnd \
+          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
+          -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+          -c:a libfdk_aac -profile:a aac_he_v2 -b:a 32k \
+          -shortest \
+          -video_track_timescale 60000 \
+          -metadata title="TikTok 8Bit Safe Color H264 PC Range Crisp" \
+          -movflags +faststart -y "$OUTPUT"
+
+          echo "✅ Selesai: $OUTPUT"
+          ls -lh compressed_videos/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hasil-Kompres-H264-Ubuntu
+          path: compressed_videos/
+          retention-days: 7
+          
