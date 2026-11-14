@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/Oq4h3K6T#e0CaXenJiwKM_uRIg7T5GAB-Y9McX8s6-3xy5daQrvY'
+        default: 'https://mega.nz/file/nyA1wQzI#DyffeK5Yw6aKQiPdaH_PLgKOMeetZ7HqQVunwV_9fLM'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/Oq4h3K6T#e0CaXenJiwKM_uRIg7T5GAB-Y9McX8s6-3xy5daQrvY'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/nyA1wQzI#DyffeK5Yw6aKQiPdaH_PLgKOMeetZ7HqQVunwV_9fLM'
 
 jobs:
   compress-h264-ubuntu:
@@ -79,12 +79,12 @@ jobs:
           ./ffmpeg -nostdin \
           -i "$INPUT" \
           -r 60 \
-          -c:v libx264 -preset slower -crf 23 -profile:v high -level 4.2 -pix_fmt yuv420p \
+          -c:v libx264 -preset slower -crf 24 -profile:v high -level 4.2 -pix_fmt yuv420p \
           -g 120 -keyint_min 30 \
-          -x264-params "level=4.2:ref=4:bframes=5:b-adapt=2:aq-mode=3:aq-strength=0.8:psy-rd=1.0,0.15:trellis=2:deblock=0,0:nr=250:rc-lookahead=60:me=umh:merange=24:subme=8:threads=0:fullrange=on:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
+          -x264-params "level=4.2:ref=8:bframes=8:b-adapt=2:aq-mode=3:aq-strength=0.8:psy-rd=1.0,0.15:trellis=2:deblock=0,0:nr=250:rc-lookahead=60:me=umh:merange=24:subme=8:threads=0:fullrange=on:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
           -color_range pc \
           -sws_flags spline+accurate_rnd \
-          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
+          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -c:a libfdk_aac -profile:a aac_he_v2 -b:a 32k \
           -shortest \
