@@ -9,14 +9,14 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/nyA1wQzI#DyffeK5Yw6aKQiPdaH_PLgKOMeetZ7HqQVunwV_9fLM'
+        default: 'https://mega.nz/file/KnRGRI4J#1qYGcvsLlVkArQ8V0MW1L9ZjJM95BcneDeOpbDcH_w8'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/nyA1wQzI#DyffeK5Yw6aKQiPdaH_PLgKOMeetZ7HqQVunwV_9fLM'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/KnRGRI4J#1qYGcvsLlVkArQ8V0MW1L9ZjJM95BcneDeOpbDcH_w8'
 
 jobs:
   compress-h264-ubuntu:
@@ -86,7 +86,7 @@ jobs:
           -sws_flags spline+accurate_rnd \
           -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-          -c:a libfdk_aac -profile:a aac_he_v2 -b:a 32k \
+          -c:a copy \
           -shortest \
           -video_track_timescale 60000 \
           -metadata title="TikTok 8Bit Safe Color H264 PC Range Crisp" \
