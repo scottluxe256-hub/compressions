@@ -1,9 +1,6 @@
 name: Compress H264 Single File (Ubuntu)
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       mega_url:
