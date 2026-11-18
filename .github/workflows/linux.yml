@@ -106,7 +106,7 @@ jobs:
           echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
 
-            - name: Upload MP4 Langsung ke MEGA
+      - name: Upload MP4 Langsung ke MEGA
         env:
           MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
