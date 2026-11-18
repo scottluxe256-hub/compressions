@@ -6,14 +6,23 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/KnRGRI4J#1qYGcvsLlVkArQ8V0MW1L9ZjJM95BcneDeOpbDcH_w8'
+        default: 'https://mega.nz/file/imxX0Y7J#nYNqcBK0YMyunNQ9AEvkGOXnUNeG-3Vbw3yeGa9E9Ow'
+      resolution:
+        description: 'Resolusi Sisi Pendek (1:1 / Portrait / Landscape)'
+        required: true
+        default: '896'
+        type: choice
+        options:
+          - '720'
+          - '896'
+          - '1080'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/KnRGRI4J#1qYGcvsLlVkArQ8V0MW1L9ZjJM95BcneDeOpbDcH_w8'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/imxX0Y7J#nYNqcBK0YMyunNQ9AEvkGOXnUNeG-3Vbw3yeGa9E9Ow'
 
 jobs:
   compress-h264-ubuntu:
@@ -59,7 +68,7 @@ jobs:
           echo "Isi folder raw_videos:"
           ls -la raw_videos
 
-      - name: Proses Kompresi H.264 (Ubuntu - PC Range & Crisp Detail)
+      - name: Proses Kompresi H.264 (Ubuntu - Original Color Match)
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
 
@@ -68,34 +77,50 @@ jobs:
             exit 1
           fi
 
-          FILENAME=$(basename "$INPUT")
-          OUTPUT="compressed_videos/${FILENAME%.*}_H264_PCRange.mp4"
+          RES="${{ github.event.inputs.resolution }}"
+          if [ -z "$RES" ]; then
+            RES="896"
+          fi
 
-          echo "🚀 Memproses kompresi H.264 di Ubuntu: $FILENAME"
+          FILENAME=$(basename "$INPUT")
+          OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_H264.mp4"
+
+          echo "🚀 Memproses kompresi H.264 (${RES}p - Warna Original 1:1): $FILENAME"
 
           ./ffmpeg -nostdin \
           -i "$INPUT" \
           -r 60 \
-          -c:v libx264 -preset slower -crf 24 -profile:v high -level 4.2 -pix_fmt yuv420p \
+          -c:v libx264 -preset slower -crf 23 -profile:v high -level 4.2 -pix_fmt yuv420p \
           -g 120 -keyint_min 30 \
-          -x264-params "level=4.2:ref=8:bframes=8:b-adapt=2:aq-mode=3:aq-strength=0.8:psy-rd=1.0,0.15:trellis=2:deblock=0,0:nr=250:rc-lookahead=60:me=umh:merange=24:subme=8:threads=0:fullrange=on:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
-          -color_range pc \
+          -x264-params "level=4.2:ref=8:bframes=8:b-adapt=2:aq-mode=3:aq-strength=0.8:psy-rd=1.0,0.15:trellis=2:deblock=0,0:nr=250:rc-lookahead=60:me=umh:merange=24:subme=8:threads=0:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
           -sws_flags spline+accurate_rnd \
-          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
+          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -c:a copy \
           -shortest \
           -video_track_timescale 60000 \
-          -metadata title="TikTok 8Bit Safe Color H264 PC Range Crisp" \
+          -metadata title="H264 Original Color Crisp" \
           -movflags +faststart -y "$OUTPUT"
 
           echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Hasil-Kompres-H264-Ubuntu
-          path: compressed_videos/
-          retention-days: 7
-          
+      - name: Upload MP4 Langsung ke MEGA
+        env:
+          MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
+          MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+        run: |
+          OUTPUT_FILE=$(find compressed_videos -name "*.mp4" | head -n 1)
+
+          if [ -z "$OUTPUT_FILE" ]; then
+            echo "❌ File output MP4 tidak ditemukan!"
+            exit 1
+          fi
+
+          # Bikin folder khusus hasil render di akun MEGA (aman kalau folder sudah ada)
+          megamkdir -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" /Root/Hasil_Render_FFmpeg || true
+
+          echo "☁️ Mengunggah $OUTPUT_FILE langsung ke MEGA..."
+          megaput -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" --path /Root/Hasil_Render_FFmpeg "$OUTPUT_FILE"
+
+          echo "✅ Selesai! File MP4 murni sudah masuk ke folder /Hasil_Render_FFmpeg di MEGA."
