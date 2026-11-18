@@ -6,14 +6,23 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/frwknSSS#p1ILTO2MWl1eVsmLNtBMpiYyma2mJ86aJwC71CUtYOA'
+        default: 'https://mega.nz/file/imxX0Y7J#nYNqcBK0YMyunNQ9AEvkGOXnUNeG-3Vbw3yeGa9E9Ow'
+      resolution:
+        description: 'Resolusi Sisi Pendek (1:1 / Portrait / Landscape)'
+        required: true
+        default: '896'
+        type: choice
+        options:
+          - '720'
+          - '896'
+          - '1080'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary'
         required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/frwknSSS#p1ILTO2MWl1eVsmLNtBMpiYyma2mJ86aJwC71CUtYOA'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/imxX0Y7J#nYNqcBK0YMyunNQ9AEvkGOXnUNeG-3Vbw3yeGa9E9Ow'
 
 jobs:
   compress-h265-ubuntu:
@@ -68,10 +77,15 @@ jobs:
             exit 1
           fi
 
-          FILENAME=$(basename "$INPUT")
-          OUTPUT="compressed_videos/${FILENAME%.*}_H265_PCRange.mp4"
+          RES="${{ github.event.inputs.resolution }}"
+          if [ -z "$RES" ]; then
+            RES="896"
+          fi
 
-          echo "🚀 Memproses kompresi H.265 di Ubuntu (Rotate 90° CW): $FILENAME"
+          FILENAME=$(basename "$INPUT")
+          OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_H265_PCRange.mp4"
+
+          echo "🚀 Memproses kompresi H.265 (${RES}p + 1.5% Micro Motion Blur): $FILENAME"
 
           ./ffmpeg -nostdin \
           -i "$INPUT" \
@@ -81,7 +95,7 @@ jobs:
           -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.8:qg-size=32:psy-rd=1.0:psy-rdoq=0.5:rdoq-level=2:deblock=0,0:nr-intra=250:nr-inter=250:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:range=full:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
           -color_range pc \
           -sws_flags spline+accurate_rnd \
-          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,896)':'if(gt(iw,ih),896,-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
+          -vf "fps=fps=60: round=near,setpts=N/60/TB,split[orig][flow];[flow]minterpolate=fps=60:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=fdiff:scd_threshold=10[blur];[orig][blur]blend=all_expr='A*0.985+B*0.015',scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp:in_range=tv:out_range=pc" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -c:a copy \
           -shortest \
@@ -92,9 +106,12 @@ jobs:
           echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload MP4 Langsung ke GitHub Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: Hasil-Kompres-H265-Ubuntu
-          path: compressed_videos/
-          retention-days: 7
+          tag_name: render-${{ github.run_number }}
+          name: Hasil Render #${{ github.run_number }} (${{ github.event.inputs.resolution }}p)
+          files: compressed_videos/*.mp4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
