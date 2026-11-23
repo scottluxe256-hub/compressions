@@ -6,7 +6,7 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link)'
         required: false
-        default: 'https://mega.nz/file/imxX0Y7J#nYNqcBK0YMyunNQ9AEvkGOXnUNeG-3Vbw3yeGa9E9Ow'
+        default: 'https://mega.nz/file/jrIEkTBK#6a0lSsDqHJx4F1UEnGDqWk-vms0gPqMNGvm3WLkxKBk'
       resolution:
         description: 'Resolusi Sisi Pendek (1:1 / Portrait / Landscape)'
         required: true
@@ -22,7 +22,7 @@ on:
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/imxX0Y7J#nYNqcBK0YMyunNQ9AEvkGOXnUNeG-3Vbw3yeGa9E9Ow'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/jrIEkTBK#6a0lSsDqHJx4F1UEnGDqWk-vms0gPqMNGvm3WLkxKBk'
 
 jobs:
   compress-h265-ubuntu:
