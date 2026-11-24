@@ -92,11 +92,12 @@ jobs:
           echo "🚀 Memproses VP9 Alpha (${RES}p) | Blend: $BLEND | Warna: $KEY_HEX | Depth: $SIM | Choke: $CHK"
 
           ./ffmpeg -nostdin \
+          -filter_threads $(nproc) \
           -i "$INPUT" \
           -c:v libvpx-vp9 -b:v 0 -crf 20 -pix_fmt yuva420p \
-          -auto-alt-ref 0 -cpu-used 1 -row-mt 1 -threads 4 \
+          -auto-alt-ref 0 -cpu-used 2 -row-mt 1 -tile-columns 2 -threads $(nproc) \
           -aq-mode 2 -g 120 -keyint_min 30 \
-          -vf "format=yuva444p,chromakey=${KEY_HEX}:${SIM}:${BLD},colorlevels=aimin=${CHK}:aimax=0.92,tmix=frames=2:weights='1 ${BLEND}',fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd" \
+          -vf "tmix=frames=2:weights='1 ${BLEND}',fps=fps=60:round=near,setpts=N/60/TB,format=yuva444p,chromakey=${KEY_HEX}:${SIM}:${BLD},colorlevels=aimin=${CHK}:aimax=0.92,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd" \
           -an \
           -y "$OUTPUT"
 
