@@ -6,7 +6,11 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link dari AM)'
         required: true
-        default: 'https://mega.nz/file/zjZkDaDQ#t109DPcT2NKhfZozoyN1k7308vvVO6DL18tTOccf57Q'
+        default: ''
+      motion_blend:
+        description: 'Kehalusan Gerak 120fps ke 60fps (0 = off | 0.25 - 0.40 = halus padat)'
+        required: true
+        default: '0.30'
       key_color:
         description: 'Kode Hex Warna Background AM (contoh: #00FF00, #FF00FF, #0000FF)'
         required: true
@@ -57,7 +61,7 @@ jobs:
 
       - name: Download File dari MEGA
         run: |
-          MEGA_LINK="${{ github.event.inputs.mega_url }}"
+          MEGA_LINK="${{ inputs.mega_url }}"
           OLD_MEGA_LINK=$(echo "$MEGA_LINK" | sed -E 's|/file/([^#]+)#|/#!\1!|')
           echo "Mengunduh dari: $OLD_MEGA_LINK"
 
@@ -66,33 +70,33 @@ jobs:
             python3 -c "from mega import Mega; m = Mega().login(); m.download_url('$OLD_MEGA_LINK', dest_path='raw_videos')"
           }
 
-      - name: Proses Kompresi WebM VP9 (Custom Chroma & Zero-Halo)
+      - name: Proses Kompresi WebM VP9 (Custom Chroma & Smooth 60fps)
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
           if [ -z "$INPUT" ]; then echo "❌ Video tidak ditemukan!"; exit 1; fi
 
-          RES="${{ github.event.inputs.resolution }}"
-          SIM="${{ github.event.inputs.key_similarity }}"
-          BLD="${{ github.event.inputs.key_blend }}"
-          CHK="${{ github.event.inputs.alpha_choke }}"
+          RES="${{ inputs.resolution }}"
+          BLEND="${{ inputs.motion_blend }}"
+          SIM="${{ inputs.key_similarity }}"
+          BLD="${{ inputs.key_blend }}"
+          CHK="${{ inputs.alpha_choke }}"
 
           # Normalisasi format hex (#00FF00 atau 00FF00 -> 0x00FF00 untuk FFmpeg)
-          RAW_HEX="${{ github.event.inputs.key_color }}"
+          RAW_HEX="${{ inputs.key_color }}"
           CLEAN_HEX=$(echo "$RAW_HEX" | sed -E 's/^(#|0x)//i')
           KEY_HEX="0x${CLEAN_HEX}"
 
           FILENAME=$(basename "$INPUT")
           OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_ALPHA.webm"
 
-          echo "🚀 Memproses VP9 Alpha (${RES}p) | Warna: $KEY_HEX | Depth: $SIM | Choke: $CHK"
+          echo "🚀 Memproses VP9 Alpha (${RES}p) | Blend: $BLEND | Warna: $KEY_HEX | Depth: $SIM | Choke: $CHK"
 
           ./ffmpeg -nostdin \
           -i "$INPUT" \
-          -r 60 \
           -c:v libvpx-vp9 -b:v 0 -crf 20 -pix_fmt yuva420p \
           -auto-alt-ref 0 -cpu-used 1 -row-mt 1 -threads 4 \
-          -aq-mode 1 -g 120 -keyint_min 30 \
-          -vf "format=yuva444p,chromakey=${KEY_HEX}:${SIM}:${BLD},colorlevels=aimin=${CHK}:aimax=0.92,fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd" \
+          -aq-mode 2 -g 120 -keyint_min 30 \
+          -vf "format=yuva444p,chromakey=${KEY_HEX}:${SIM}:${BLD},colorlevels=aimin=${CHK}:aimax=0.92,tmix=frames=2:weights='1 ${BLEND}',fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd" \
           -an \
           -y "$OUTPUT"
 
