@@ -1,0 +1,113 @@
+name: Compress VP9 Transparent (Custom Chroma)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mega_url:
+        description: 'URL File MEGA (Direct File Link dari AM)'
+        required: true
+        default: 'https://mega.nz/file/jrIEkTBK#...'
+      key_color:
+        description: 'Kode Hex Warna Background AM (contoh: #00FF00, #FF00FF, #0000FF)'
+        required: true
+        default: '#00FF00'
+      key_similarity:
+        description: 'Kedalaman Hapus Warna (0.05 - 0.40 | makin besar = makin dalam)'
+        required: true
+        default: '0.18'
+      key_blend:
+        description: 'Kehalusan Pinggiran / Feather (0.01 - 0.15)'
+        required: true
+        default: '0.05'
+      alpha_choke:
+        description: 'Pangkas Sisa Halo Pinggiran (0.00 - 0.35 | 0.15 = bersih bebas bekas)'
+        required: true
+        default: '0.15'
+      resolution:
+        description: 'Resolusi Sisi Pendek'
+        required: true
+        default: '1080'
+        type: choice
+        options:
+          - '720'
+          - '896'
+          - '1080'
+
+env:
+  DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
+
+jobs:
+  compress-vp9-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Folders & Install Tools
+        run: |
+          mkdir -p raw_videos compressed_videos
+          sudo apt-get update
+          sudo apt-get install -y megatools || true
+
+      - name: Download Custom Linux ffmpeg
+        run: |
+          echo "Downloading FFmpeg..."
+          curl -L "${{ env.DEFAULT_FFMPEG_URL }}" -o ffmpeg
+          chmod +x ffmpeg
+
+      - name: Download File dari MEGA
+        run: |
+          MEGA_LINK="${{ github.event.inputs.mega_url }}"
+          OLD_MEGA_LINK=$(echo "$MEGA_LINK" | sed -E 's|/file/([^#]+)#|/#!\1!|')
+          echo "Mengunduh dari: $OLD_MEGA_LINK"
+
+          megatools dl "$OLD_MEGA_LINK" --path raw_videos || {
+            python3 -m pip install mega.py
+            python3 -c "from mega import Mega; m = Mega().login(); m.download_url('$OLD_MEGA_LINK', dest_path='raw_videos')"
+          }
+
+      - name: Proses Kompresi WebM VP9 (Custom Chroma & Zero-Halo)
+        run: |
+          INPUT=$(find raw_videos -type f | head -n 1)
+          if [ -z "$INPUT" ]; then echo "❌ Video tidak ditemukan!"; exit 1; fi
+
+          RES="${{ github.event.inputs.resolution }}"
+          SIM="${{ github.event.inputs.key_similarity }}"
+          BLD="${{ github.event.inputs.key_blend }}"
+          CHK="${{ github.event.inputs.alpha_choke }}"
+
+          # Normalisasi format hex (#00FF00 atau 00FF00 -> 0x00FF00 untuk FFmpeg)
+          RAW_HEX="${{ github.event.inputs.key_color }}"
+          CLEAN_HEX=$(echo "$RAW_HEX" | sed -E 's/^(#|0x)//i')
+          KEY_HEX="0x${CLEAN_HEX}"
+
+          FILENAME=$(basename "$INPUT")
+          OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_ALPHA.webm"
+
+          echo "🚀 Memproses VP9 Alpha (${RES}p) | Warna: $KEY_HEX | Depth: $SIM | Choke: $CHK"
+
+          ./ffmpeg -nostdin \
+          -i "$INPUT" \
+          -r 60 \
+          -c:v libvpx-vp9 -b:v 0 -crf 20 -pix_fmt yuva420p \
+          -auto-alt-ref 0 -cpu-used 1 -row-mt 1 -threads 4 \
+          -aq-mode 1 -g 120 -keyint_min 30 \
+          -vf "format=yuva444p,chromakey=${KEY_HEX}:${SIM}:${BLD},colorlevels=aimin=${CHK}:aimax=0.92,fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd" \
+          -an \
+          -y "$OUTPUT"
+
+          echo "✅ Selesai: $OUTPUT"
+          ls -lh compressed_videos/
+
+      - name: Upload WebM Transparan ke MEGA
+        env:
+          MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
+          MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+        run: |
+          OUTPUT_FILE=$(find compressed_videos -name "*.webm" | head -n 1)
+          if [ -z "$OUTPUT_FILE" ]; then echo "❌ File output WebM tidak ditemukan!"; exit 1; fi
+
+          megamkdir -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" /Root/Hasil_Render_FFmpeg || true
+          echo "☁️ Mengunggah $OUTPUT_FILE langsung ke MEGA..."
+          megaput -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" --path /Root/Hasil_Render_FFmpeg "$OUTPUT_FILE"
+          
