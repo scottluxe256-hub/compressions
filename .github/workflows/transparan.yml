@@ -6,7 +6,7 @@ on:
       mega_url:
         description: 'URL File MEGA (Direct File Link dari AM)'
         required: true
-        default: 'https://mega.nz/file/jrIEkTBK#...'
+        default: 'https://mega.nz/file/zjZkDaDQ#t109DPcT2NKhfZozoyN1k7308vvVO6DL18tTOccf57Q'
       key_color:
         description: 'Kode Hex Warna Background AM (contoh: #00FF00, #FF00FF, #0000FF)'
         required: true
