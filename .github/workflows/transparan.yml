@@ -1,47 +1,35 @@
-name: Compress VP9 Transparent (Custom Chroma)
+name: Compress AV1 Single File (Ubuntu)
 
 on:
   workflow_dispatch:
     inputs:
       mega_url:
-        description: 'URL File MEGA (Direct File Link dari AM)'
-        required: true
+        description: 'URL File MEGA (Direct File Link)'
+        required: false
         default: ''
       motion_blend:
-        description: 'Kehalusan Gerak 120fps ke 60fps (0 = off | 0.25 - 0.40 = halus padat)'
+        description: 'Kehalusan Gerak 120fps ke 60fps (0 = off | 0.25 - 0.35 = halus padat)'
         required: true
         default: '0.30'
-      key_color:
-        description: 'Kode Hex Warna Background AM (contoh: #00FF00, #FF00FF, #0000FF)'
-        required: true
-        default: '#00FF00'
-      key_similarity:
-        description: 'Kedalaman Hapus Warna (0.05 - 0.40 | makin besar = makin dalam)'
-        required: true
-        default: '0.18'
-      key_blend:
-        description: 'Kehalusan Pinggiran / Feather (0.01 - 0.15)'
-        required: true
-        default: '0.05'
-      alpha_choke:
-        description: 'Pangkas Sisa Halo Pinggiran (0.00 - 0.35 | 0.15 = bersih bebas bekas)'
-        required: true
-        default: '0.15'
       resolution:
-        description: 'Resolusi Sisi Pendek'
+        description: 'Resolusi Sisi Pendek (1:1 / Portrait / Landscape)'
         required: true
-        default: '1080'
+        default: '896'
         type: choice
         options:
           - '720'
           - '896'
           - '1080'
+      ffmpeg_url:
+        description: 'URL Direct Download ffmpeg binary'
+        required: false
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
+  DEFAULT_MEGA_URL: 'https://mega.nz/file/jrIEkTBK#6a0lSsDqHJx4F1UEnGDqWk-vms0gPqMNGvm3WLkxKBk'
 
 jobs:
-  compress-vp9-ubuntu:
+  compress-av1-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -55,64 +43,93 @@ jobs:
 
       - name: Download Custom Linux ffmpeg
         run: |
-          echo "Downloading FFmpeg..."
-          curl -L "${{ env.DEFAULT_FFMPEG_URL }}" -o ffmpeg
+          URL="${{ github.event.inputs.ffmpeg_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ env.DEFAULT_FFMPEG_URL }}"
+          fi
+          echo "Downloading FFmpeg from: $URL"
+          curl -L "$URL" -o ffmpeg
           chmod +x ffmpeg
 
       - name: Download File dari MEGA
         run: |
-          MEGA_LINK="${{ inputs.mega_url }}"
+          MEGA_LINK="${{ github.event.inputs.mega_url }}"
+          if [ -z "$MEGA_LINK" ]; then
+            MEGA_LINK="${{ env.DEFAULT_MEGA_URL }}"
+          fi
+
+          # Konversi /file/ID#KEY menjadi /#!ID!KEY
           OLD_MEGA_LINK=$(echo "$MEGA_LINK" | sed -E 's|/file/([^#]+)#|/#!\1!|')
+
           echo "Mengunduh dari: $OLD_MEGA_LINK"
 
           megatools dl "$OLD_MEGA_LINK" --path raw_videos || {
+            echo "⚠️ Megatools gagal, mencoba fallback via Python mega.py..."
             python3 -m pip install mega.py
             python3 -c "from mega import Mega; m = Mega().login(); m.download_url('$OLD_MEGA_LINK', dest_path='raw_videos')"
           }
 
-      - name: Proses Kompresi WebM VP9 (Custom Chroma & Smooth 60fps)
+          echo "Isi folder raw_videos:"
+          ls -la raw_videos
+
+      - name: Proses Kompresi AV1 (Ubuntu - Original Color Match & Smooth 60fps)
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
-          if [ -z "$INPUT" ]; then echo "❌ Video tidak ditemukan!"; exit 1; fi
 
-          RES="${{ inputs.resolution }}"
-          BLEND="${{ inputs.motion_blend }}"
-          SIM="${{ inputs.key_similarity }}"
-          BLD="${{ inputs.key_blend }}"
-          CHK="${{ inputs.alpha_choke }}"
+          if [ -z "$INPUT" ]; then
+            echo "❌ Tidak ada video yang ditemukan!"
+            exit 1
+          fi
 
-          # Normalisasi format hex (#00FF00 atau 00FF00 -> 0x00FF00 untuk FFmpeg)
-          RAW_HEX="${{ inputs.key_color }}"
-          CLEAN_HEX=$(echo "$RAW_HEX" | sed -E 's/^(#|0x)//i')
-          KEY_HEX="0x${CLEAN_HEX}"
+          RES="${{ github.event.inputs.resolution }}"
+          if [ -z "$RES" ]; then
+            RES="896"
+          fi
+
+          BLEND="${{ github.event.inputs.motion_blend }}"
+          if [ -z "$BLEND" ]; then
+            BLEND="0.30"
+          fi
 
           FILENAME=$(basename "$INPUT")
-          OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_ALPHA.webm"
+          OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_AV1.mp4"
 
-          echo "🚀 Memproses VP9 Alpha (${RES}p) | Blend: $BLEND | Warna: $KEY_HEX | Depth: $SIM | Choke: $CHK"
+          echo "🚀 Memproses kompresi AV1 (${RES}p | Blend: ${BLEND} | Warna Original 1:1): $FILENAME"
 
           ./ffmpeg -nostdin \
           -filter_threads $(nproc) \
           -i "$INPUT" \
-          -c:v libvpx-vp9 -b:v 0 -crf 20 -pix_fmt yuva420p \
-          -auto-alt-ref 0 -cpu-used 2 -row-mt 1 -tile-columns 2 -threads $(nproc) \
-          -aq-mode 2 -g 120 -keyint_min 30 \
-          -vf "tmix=frames=2:weights='1 ${BLEND}',fps=fps=60:round=near,setpts=N/60/TB,format=yuva444p,chromakey=${KEY_HEX}:${SIM}:${BLD},colorlevels=aimin=${CHK}:aimax=0.92,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd" \
+          -c:v libsvtav1 -preset 4 -crf 30 -pix_fmt yuv420p \
+          -g 120 -keyint_min 30 \
+          -svtav1-params "tune=0:aq-mode=2:enable-qm=1:qm-min=0:enable-variance-boost=1:enable-overlays=1:scd=1:lp=0:color-primaries=1:transfer-characteristics=1:matrix-coefficients=1" \
+          -sws_flags spline+accurate_rnd \
+          -vf "tmix=frames=2:weights='1 ${BLEND}',fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
+          -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -an \
-          -y "$OUTPUT"
+          -video_track_timescale 60000 \
+          -metadata title="AV1 Original Color Crisp 60fps" \
+          -movflags +faststart -y "$OUTPUT"
 
           echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
 
-      - name: Upload WebM Transparan ke MEGA
+      - name: Upload MP4 Langsung ke MEGA
         env:
           MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
         run: |
-          OUTPUT_FILE=$(find compressed_videos -name "*.webm" | head -n 1)
-          if [ -z "$OUTPUT_FILE" ]; then echo "❌ File output WebM tidak ditemukan!"; exit 1; fi
+          OUTPUT_FILE=$(find compressed_videos -name "*.mp4" | head -n 1)
 
+          if [ -z "$OUTPUT_FILE" ]; then
+            echo "❌ File output MP4 tidak ditemukan!"
+            exit 1
+          fi
+
+          # Bikin folder khusus hasil render di akun MEGA (aman kalau folder sudah ada)
           megamkdir -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" /Root/Hasil_Render_FFmpeg || true
+
           echo "☁️ Mengunggah $OUTPUT_FILE langsung ke MEGA..."
           megaput -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" --path /Root/Hasil_Render_FFmpeg "$OUTPUT_FILE"
+
+          echo "✅ Selesai! File MP4 AV1 sudah masuk ke folder /Hasil_Render_FFmpeg di MEGA."
           
