@@ -1,4 +1,5 @@
-name: Compress AV1 Single File (Ubuntu)
+
+name: Compress H265 Single File (Ubuntu)
 
 on:
   workflow_dispatch:
@@ -7,19 +8,23 @@ on:
         description: 'URL File MEGA (Direct File Link)'
         required: false
         default: ''
+
       motion_blend:
         description: 'Kehalusan Gerak 120fps ke 60fps (0 = off | 0.25 - 0.35 = halus padat)'
         required: true
         default: '0.30'
+
       resolution:
         description: 'Resolusi Sisi Pendek (1:1 / Portrait / Landscape)'
         required: true
         default: '896'
         type: choice
         options:
+          - '540'
           - '720'
           - '896'
           - '1080'
+
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary'
         required: false
@@ -29,8 +34,9 @@ env:
   DEFAULT_MEGA_URL: 'https://mega.nz/file/jrIEkTBK#6a0lSsDqHJx4F1UEnGDqWk-vms0gPqMNGvm3WLkxKBk'
 
 jobs:
-  compress-av1-ubuntu:
+  compress-h265-ubuntu:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -44,16 +50,22 @@ jobs:
       - name: Download Custom Linux ffmpeg
         run: |
           URL="${{ github.event.inputs.ffmpeg_url }}"
+
           if [ -z "$URL" ]; then
             URL="${{ env.DEFAULT_FFMPEG_URL }}"
           fi
+
           echo "Downloading FFmpeg from: $URL"
-          curl -L "$URL" -o ffmpeg
+
+          curl -fL "$URL" -o ffmpeg
           chmod +x ffmpeg
+
+          ./ffmpeg -hide_banner -encoders | grep libx265
 
       - name: Download File dari MEGA
         run: |
           MEGA_LINK="${{ github.event.inputs.mega_url }}"
+
           if [ -z "$MEGA_LINK" ]; then
             MEGA_LINK="${{ env.DEFAULT_MEGA_URL }}"
           fi
@@ -65,14 +77,16 @@ jobs:
 
           megatools dl "$OLD_MEGA_LINK" --path raw_videos || {
             echo "⚠️ Megatools gagal, mencoba fallback via Python mega.py..."
+
             python3 -m pip install mega.py
+
             python3 -c "from mega import Mega; m = Mega().login(); m.download_url('$OLD_MEGA_LINK', dest_path='raw_videos')"
           }
 
           echo "Isi folder raw_videos:"
           ls -la raw_videos
 
-      - name: Proses Kompresi AV1 (Ubuntu - Original Color Match & Smooth 60fps)
+      - name: Proses Kompresi H265 (Ubuntu - UMH + Lookahead + Smooth 60fps)
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
 
@@ -82,33 +96,50 @@ jobs:
           fi
 
           RES="${{ github.event.inputs.resolution }}"
+
           if [ -z "$RES" ]; then
             RES="896"
           fi
 
           BLEND="${{ github.event.inputs.motion_blend }}"
+
           if [ -z "$BLEND" ]; then
             BLEND="0.30"
           fi
 
           FILENAME=$(basename "$INPUT")
-          OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_AV1.mp4"
+          OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_H265.mp4"
 
-          echo "🚀 Memproses kompresi AV1 (${RES}p | Blend: ${BLEND} | Warna Original 1:1): $FILENAME"
+          echo "🚀 Memproses H.265:"
+          echo "Resolusi: ${RES}p"
+          echo "CRF: 27"
+          echo "Motion Blend: ${BLEND}"
+          echo "Motion Estimation: UMH"
+          echo "Subme: 5"
+          echo "B-Frames: 8"
+          echo "Reference Frames: 4"
+          echo "Lookahead: 40"
 
           ./ffmpeg -nostdin \
           -filter_threads $(nproc) \
           -i "$INPUT" \
-          -c:v libsvtav1 -preset 2 -crf 30 -pix_fmt yuv420p10le \
-          -g 120 -keyint_min 30 \
-          -svtav1-params "tune=0:aq-mode=2:enable-qm=1:qm-min=0:enable-variance-boost=1:enable-overlays=1:scd=1:lp=0:color-primaries=1:transfer-characteristics=1:matrix-coefficients=1" \
+          -c:v libx265 \
+          -preset slow \
+          -crf 27 \
+          -pix_fmt yuv420p \
+          -x265-params "me=umh:subme=5:bframes=5:ref=4:rc-lookahead=60:aq-mode=2:aq-strength=1.0:deblock=-1,-1" \
+          -g 120 \
+          -keyint_min 30 \
           -sws_flags spline+accurate_rnd \
           -vf "tmix=frames=2:weights='1 ${BLEND}',fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
-          -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+          -colorspace bt709 \
+          -color_primaries bt709 \
+          -color_trc bt709 \
           -an \
           -video_track_timescale 60000 \
-          -metadata title="AV1 Original Color Crisp 60fps" \
-          -movflags +faststart -y "$OUTPUT"
+          -metadata title="H265 Original Color Crisp 60fps" \
+          -movflags +faststart \
+          -y "$OUTPUT"
 
           echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
@@ -125,11 +156,15 @@ jobs:
             exit 1
           fi
 
-          # Bikin folder khusus hasil render di akun MEGA (aman kalau folder sudah ada)
+          # Membuat folder hasil render
           megamkdir -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" /Root/Hasil_Render_FFmpeg || true
 
           echo "☁️ Mengunggah $OUTPUT_FILE langsung ke MEGA..."
-          megaput -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" --path /Root/Hasil_Render_FFmpeg "$OUTPUT_FILE"
 
-          echo "✅ Selesai! File MP4 AV1 sudah masuk ke folder /Hasil_Render_FFmpeg di MEGA."
-          
+          megaput \
+          -u "$MEGA_EMAIL" \
+          -p "$MEGA_PASSWORD" \
+          --path /Root/Hasil_Render_FFmpeg \
+          "$OUTPUT_FILE"
+
+          echo "✅ Selesai! File H.265 sudah masuk ke folder /Hasil_Render_FFmpeg di MEGA."
