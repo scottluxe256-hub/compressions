@@ -7,14 +7,14 @@ on:
         description: 'URL Folder MEGA (berisi hair-front.mp4, hair-back.mp4, eyes-blink.mp4)'
         required: true
       resolution:
-        description: 'Resolusi Lebar per Panel (896 = 896x1592 per panel)'
+        description: 'Lebar per Panel (720 = 720x1280 per panel / 2160x1280 total)'
         required: true
-        default: '896'
+        default: '720'
         type: choice
         options:
+          - '640'
           - '720'
           - '896'
-          - '1080'
       ffmpeg_url:
         description: 'URL Direct Download ffmpeg binary (opsional)'
         required: false
@@ -48,8 +48,6 @@ jobs:
       - name: Download Folder dari MEGA
         run: |
           MEGA_LINK="${{ github.event.inputs.mega_folder_url }}"
-
-          # Konversi link modern /folder/ID#KEY atau /file/ID#KEY ke format megatools
           OLD_MEGA_LINK=$(echo "$MEGA_LINK" | sed -E 's|/folder/([^#]+)#|/#F!\1!|; s|/file/([^#]+)#|/#!\1!|')
 
           echo "Mengunduh folder dari: $OLD_MEGA_LINK"
@@ -58,7 +56,7 @@ jobs:
           echo "Isi folder raw_videos:"
           find raw_videos -type f -exec ls -lh {} +
 
-      - name: Gabung & Kompres Mascot Atlas H.265 (60fps + Mata 0s & 8s)
+      - name: Gabung & Kompres Mascot Atlas H.265 (720p Level 3.1 + Mata 0s & 8s)
         run: |
           HAIR_FRONT=$(find raw_videos -type f -iname "hair-front.*" | head -n 1)
           HAIR_BACK=$(find raw_videos -type f -iname "hair-back.*" | head -n 1)
@@ -71,10 +69,9 @@ jobs:
 
           RES="${{ github.event.inputs.resolution }}"
           if [ -z "$RES" ]; then
-            RES="896"
+            RES="720"
           fi
 
-          # Hitung tinggi 9:16 genap sesuai lebar panel (720x1280, 896x1592, atau 1080x1920)
           PANEL_W="$RES"
           PANEL_H=$(( (RES * 16 / 9) / 2 * 2 ))
           OUTPUT="compressed_videos/mascot-atlas_${RES}p_H265.mp4"
@@ -94,13 +91,13 @@ jobs:
           [hf][hb][eb]hstack=inputs=3:shortest=1[out]" \
           -map "[out]" \
           -r 60 \
-          -c:v libx265 -preset slow -crf 24 -profile:v main -pix_fmt yuv420p \
+          -c:v libx265 -preset slow -crf 24 -profile:v main -level:v 3.1 -pix_fmt yuv420p \
           -g 120 -keyint_min 30 \
-          -x265-params "ref=3:bframes=3:aq-mode=3:aq-strength=0.8:qg-size=32:psy-rd=1.0:psy-rdoq=0.5:rdoq-level=2:deblock=0,0:nr-intra=250:nr-inter=250:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
+          -x265-params "allow-non-conformance=1:no-open-gop=1:ref=3:bframes=2:b-pyramid=0:aq-mode=3:aq-strength=0.8:qg-size=32:psy-rd=1.0:psy-rdoq=0.5:rdoq-level=2:deblock=0,0:nr-intra=250:nr-inter=250:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -an \
           -video_track_timescale 60000 -tag:v hvc1 \
-          -metadata title="Mascot Atlas H265 Original Color Crisp" \
+          -metadata title="Mascot Atlas H265 Mobile Crisp" \
           -movflags +faststart -y "$OUTPUT"
 
           echo "✅ Selesai: $OUTPUT"
