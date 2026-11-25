@@ -99,7 +99,7 @@ jobs:
           ./ffmpeg -nostdin \
           -filter_threads $(nproc) \
           -i "$INPUT" \
-          -c:v libsvtav1 -preset 4 -crf 30 -pix_fmt yuv420p \
+          -c:v libsvtav1 -preset 2 -crf 30 -pix_fmt yuv420p10le \
           -g 120 -keyint_min 30 \
           -svtav1-params "tune=0:aq-mode=2:enable-qm=1:qm-min=0:enable-variance-boost=1:enable-overlays=1:scd=1:lp=0:color-primaries=1:transfer-characteristics=1:matrix-coefficients=1" \
           -sws_flags spline+accurate_rnd \
