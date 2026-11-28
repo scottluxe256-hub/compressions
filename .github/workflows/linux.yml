@@ -68,7 +68,7 @@ jobs:
           echo "Isi folder raw_videos:"
           ls -la raw_videos
 
-      - name: Proses Kompresi H.265 (Ubuntu - Original Color Match)
+      - name: Proses Kompresi H.265 (Ubuntu - Original Color & Sharp Detail)
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
 
@@ -85,16 +85,16 @@ jobs:
           FILENAME=$(basename "$INPUT")
           OUTPUT="compressed_videos/${FILENAME%.*}_${RES}p_H265.mp4"
 
-          echo "🚀 Memproses kompresi H.265 (${RES}p - Warna Original 1:1): $FILENAME"
+          echo "🚀 Memproses kompresi H.265 (${RES}p - Sharp Detail & Warna Original 1:1): $FILENAME"
 
           ./ffmpeg -nostdin \
           -i "$INPUT" \
           -r 60 \
-          -c:v libx265 -preset slow -crf 24 -profile:v main -pix_fmt yuv420p \
+          -c:v libx265 -preset slow -crf 14 -profile:v main -level:v 4.1 -pix_fmt yuv420p \
           -g 120 -keyint_min 30 \
-          -x265-params "level-idc=4.1:ref=5:bframes=5:aq-mode=3:aq-strength=0.8:qg-size=32:psy-rd=1.0:psy-rdoq=0.5:rdoq-level=2:deblock=0,0:nr-intra=250:nr-inter=250:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
+          -x265-params "ref=5:bframes=5:aq-mode=3:aq-strength=0.8:qg-size=32:psy-rd=1.5:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:nr-intra=0:nr-inter=0:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:no-strong-intra-smoothing=1:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
           -sws_flags spline+accurate_rnd \
-          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
+          -vf "setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -c:a copy \
           -shortest \
