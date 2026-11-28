@@ -49,7 +49,7 @@ jobs:
           GDRIVE_LINK="${{ github.event.inputs.gdrive_url }}"
           echo "Mengunduh dari Google Drive: $GDRIVE_LINK"
 
-          gdown --fuzzy "$GDRIVE_LINK" -O raw_videos/
+          gdown "$GDRIVE_LINK" -O raw_videos/
 
           echo "Isi folder raw_videos:"
           ls -lh raw_videos
@@ -80,7 +80,7 @@ jobs:
           -g 120 -keyint_min 30 \
           -x265-params "ref=5:bframes=5:aq-mode=3:aq-strength=0.8:qg-size=32:psy-rd=1.5:psy-rdoq=1.0:rdoq-level=2:deblock=-1,-1:nr-intra=0:nr-inter=0:rc-lookahead=60:me=umh:merange=24:subme=4:wpp=1:frame-threads=0:pools=+:no-sao=1:no-strong-intra-smoothing=1:colorprim=bt709:transfer=bt709:colormatrix=bt709" \
           -sws_flags spline+accurate_rnd \
-          -vf "setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
+          -vf "fps=fps=60:round=near,setpts=N/60/TB,scale='if(gt(iw,ih),-2,${RES})':'if(gt(iw,ih),${RES},-2)':flags=spline+accurate_rnd+full_chroma_int+full_chroma_inp" \
           -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
           -c:a copy \
           -shortest \
