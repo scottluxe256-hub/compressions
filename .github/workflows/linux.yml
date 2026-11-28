@@ -1,12 +1,11 @@
-name: Compress H265 Single File (Ubuntu)
+name: Compress H265 Single File (GDrive to Artifact)
 
 on:
   workflow_dispatch:
     inputs:
-      mega_url:
-        description: 'URL File MEGA (Direct File Link)'
-        required: false
-        default: 'https://mega.nz/file/jrIEkTBK#6a0lSsDqHJx4F1UEnGDqWk-vms0gPqMNGvm3WLkxKBk'
+      gdrive_url:
+        description: 'Link Google Drive Video (Pastikan akses: Anyone with the link)'
+        required: true
       resolution:
         description: 'Resolusi Sisi Pendek (1:1 / Portrait / Landscape)'
         required: true
@@ -22,7 +21,6 @@ on:
 
 env:
   DEFAULT_FFMPEG_URL: 'https://github.com/scottluxe256-hub/compressions/releases/download/9.0.2/ffmpeg'
-  DEFAULT_MEGA_URL: 'https://mega.nz/file/jrIEkTBK#6a0lSsDqHJx4F1UEnGDqWk-vms0gPqMNGvm3WLkxKBk'
 
 jobs:
   compress-h265-ubuntu:
@@ -31,11 +29,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Folders & Install Tools
+      - name: Setup Folders & Install gdown
         run: |
           mkdir -p raw_videos compressed_videos
-          sudo apt-get update
-          sudo apt-get install -y megatools || true
+          pip install -q gdown
 
       - name: Download Custom Linux ffmpeg
         run: |
@@ -47,28 +44,17 @@ jobs:
           curl -L "$URL" -o ffmpeg
           chmod +x ffmpeg
 
-      - name: Download File dari MEGA
+      - name: Download Video dari Google Drive
         run: |
-          MEGA_LINK="${{ github.event.inputs.mega_url }}"
-          if [ -z "$MEGA_LINK" ]; then
-            MEGA_LINK="${{ env.DEFAULT_MEGA_URL }}"
-          fi
+          GDRIVE_LINK="${{ github.event.inputs.gdrive_url }}"
+          echo "Mengunduh dari Google Drive: $GDRIVE_LINK"
 
-          # Konversi /file/ID#KEY menjadi /#!ID!KEY
-          OLD_MEGA_LINK=$(echo "$MEGA_LINK" | sed -E 's|/file/([^#]+)#|/#!\1!|')
-
-          echo "Mengunduh dari: $OLD_MEGA_LINK"
-
-          megatools dl "$OLD_MEGA_LINK" --path raw_videos || {
-            echo "⚠️ Megatools gagal, mencoba fallback via Python mega.py..."
-            python3 -m pip install mega.py
-            python3 -c "from mega import Mega; m = Mega().login(); m.download_url('$OLD_MEGA_LINK', dest_path='raw_videos')"
-          }
+          gdown --fuzzy "$GDRIVE_LINK" -O raw_videos/
 
           echo "Isi folder raw_videos:"
-          ls -la raw_videos
+          ls -lh raw_videos
 
-      - name: Proses Kompresi H.265 (Ubuntu - Original Color & Sharp Detail)
+      - name: Proses Kompresi H.265 (Original Color & Sharp Detail)
         run: |
           INPUT=$(find raw_videos -type f | head -n 1)
 
@@ -105,22 +91,9 @@ jobs:
           echo "✅ Selesai: $OUTPUT"
           ls -lh compressed_videos/
 
-      - name: Upload MP4 Langsung ke MEGA
-        env:
-          MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
-          MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
-        run: |
-          OUTPUT_FILE=$(find compressed_videos -name "*.mp4" | head -n 1)
-
-          if [ -z "$OUTPUT_FILE" ]; then
-            echo "❌ File output MP4 tidak ditemukan!"
-            exit 1
-          fi
-
-          # Bikin folder khusus hasil render di akun MEGA (aman kalau folder sudah ada)
-          megamkdir -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" /Root/Hasil_Render_FFmpeg || true
-
-          echo "☁️ Mengunggah $OUTPUT_FILE langsung ke MEGA..."
-          megaput -u "$MEGA_EMAIL" -p "$MEGA_PASSWORD" --path /Root/Hasil_Render_FFmpeg "$OUTPUT_FILE"
-
-          echo "✅ Selesai! File MP4 murni sudah masuk ke folder /Hasil_Render_FFmpeg di MEGA."
+      - name: Upload Hasil ke GitHub Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compressed-video-h265
+          path: compressed_videos/*.mp4
+          retention-days: 7
